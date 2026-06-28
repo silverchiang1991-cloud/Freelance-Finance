@@ -65,13 +65,22 @@ const PIE_COLORS = ['#7a9cc6', '#7fb18e', '#cbb079', '#d2908f', '#a99bd1',
 const OTHER_CLIENT_COLOR = '#9aa3ad'; // 其他未指定業主 → 灰
 const NO_CLIENT_COLOR = '#b8bec7';    // 沒有業主 → 淺灰
 
-// 指定業主固定顏色(公開版:無指定,讓每個業主自動配色)
+// 指定業主固定顏色(依業主名稱)
 const CLIENT_COLOR_OVERRIDES = {};
 
-// 依業主(客戶)決定顏色:依業主順序自動從調色盤取色;沒有業主用淺灰
+// 客戶調色盤(儲存的是這些「飽和基準色」;日覽會自動轉成柔和糖果色預覽/呈現)
+const CLIENT_PALETTE = ['#f5d24f', '#5fd6c1', '#7a9cc6', '#9d8fe0', '#d2908f',
+  '#7fb18e', '#dcab86', '#d2a0bf', '#d05a5a', '#9aa3ad'];
+// 調色盤色塊在當前主題下的顯示色(日覽提亮成糖果色,夜覽用原飽和色)
+function clientSwatchColor(hex) {
+  return document.documentElement.classList.contains('theme-light') ? lightenHex(hex, 0.4) : hex;
+}
+
+// 依業主(客戶)決定顏色:優先用客戶自選色 → 指定名稱色 → 灰色;沒有業主用淺灰
 function clientColor(clientId) {
   if (!clientId) return NO_CLIENT_COLOR;
   const client = db.clients.find((c) => c.id === clientId);
+  if (client && client.color) return client.color;
   if (client && CLIENT_COLOR_OVERRIDES[client.name]) return CLIENT_COLOR_OVERRIDES[client.name];
   const idx = db.clients.findIndex((c) => c.id === clientId);
   return PIE_COLORS[(idx < 0 ? 0 : idx) % PIE_COLORS.length];
@@ -663,12 +672,21 @@ function openModal(innerHTML) {
 /* ---------- 客戶表單 ---------- */
 function clientForm(existing) {
   const c = existing || { name: '' };
+  let selectedColor = (existing && existing.color) ? existing.color
+    : (existing ? clientColor(existing.id) : CLIENT_PALETTE[db.clients.length % CLIENT_PALETTE.length]);
+  const swatches = CLIENT_PALETTE.map((hex) =>
+    `<button type="button" class="color-swatch ${hex === selectedColor ? 'active' : ''}" data-color="${hex}" style="background:${clientSwatchColor(hex)}" aria-label="顏色"></button>`).join('');
   openModal(`
     <div class="modal-title">${existing ? '編輯客戶' : '新增客戶'}</div>
     <div class="field">
       <label>客戶名稱 <span class="req">*</span></label>
       <input id="f-name" type="text" value="${esc(c.name)}" placeholder="個人或公司名稱" autocomplete="off" />
       <div class="field-error" id="e-name" style="display:none">請輸入客戶名稱</div>
+    </div>
+    <div class="field">
+      <label>顏色</label>
+      <div class="color-grid" id="f-colors">${swatches}</div>
+      <div class="field-hint">報表圓餅圖會用這個顏色(日覽會自動轉成柔和糖果色)。</div>
     </div>
     <div class="modal-actions">
       ${existing ? `<button class="btn btn-danger-ghost" id="del">刪除</button>` : ''}
@@ -677,13 +695,19 @@ function clientForm(existing) {
   `);
   const nameInput = document.getElementById('f-name');
   nameInput.focus();
+  document.querySelectorAll('#f-colors .color-swatch').forEach((sw) => {
+    sw.addEventListener('click', () => {
+      selectedColor = sw.dataset.color;
+      document.querySelectorAll('#f-colors .color-swatch').forEach((o) => o.classList.toggle('active', o === sw));
+    });
+  });
   document.getElementById('save').addEventListener('click', () => {
     const name = nameInput.value.trim();
     if (!name) { document.getElementById('e-name').style.display = 'block'; return; }
     if (existing) {
-      existing.name = name;
+      existing.name = name; existing.color = selectedColor;
     } else {
-      db.clients.push({ id: uid(), name, createdAt: Date.now() });
+      db.clients.push({ id: uid(), name, color: selectedColor, createdAt: Date.now() });
     }
     saveDB(); closeModal(); render();
   });

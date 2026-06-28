@@ -346,6 +346,16 @@ html, body {
 }
 .seg-opt.active { border-color: var(--primary); background: rgba(74,141,255,.18); color: #9cc2ff; }
 
+/* 客戶顏色調色盤 */
+.color-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.color-swatch {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; padding: 0; cursor: pointer;
+  outline: 2px solid transparent; outline-offset: 2px;
+  transition: outline-color .12s ease;
+}
+.color-swatch.active { outline-color: var(--text); }
+
 .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
 .modal-actions .btn { flex: 1; }
 
