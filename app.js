@@ -111,12 +111,14 @@ function loadDB() {
 }
 
 function saveDB() {
+  db._updatedAt = Date.now();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   } catch (e) {
     alert('儲存失敗,可能是瀏覽器空間不足。');
     console.error(e);
   }
+  if (typeof dbxScheduleUpload === 'function') dbxScheduleUpload();
 }
 
 function uid() {
@@ -980,13 +982,161 @@ function importData(file) {
   reader.readAsText(file);
 }
 
+/* ---------- Dropbox 雲端同步(跨裝置)---------- */
+const DBX_KEY = '5nm3dfim2rtub82';
+const DBX_TOKENS_KEY = 'freelance-dbx';
+const DBX_FILE = '/data.json';
+let dbxUploadTimer = null;
+let dbxStatus = '';
+
+function dbxAvailable() { return location.protocol === 'http:' || location.protocol === 'https:'; }
+function dbxLinked() { try { return !!localStorage.getItem(DBX_TOKENS_KEY); } catch (e) { return false; } }
+function dbxRedirectUri() { return location.origin + location.pathname; }
+function dbxSetStatus(s) { dbxStatus = s; const el = document.getElementById('dbx-status'); if (el) el.textContent = s; }
+
+function dbxB64url(buf) {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function dbxChallenge(verifier) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return dbxB64url(hash);
+}
+function dbxRandom(n) {
+  const a = new Uint8Array(n); crypto.getRandomValues(a);
+  return Array.from(a, (x) => ('0' + x.toString(16)).slice(-2)).join('');
+}
+
+async function dbxLink() {
+  const verifier = dbxRandom(48);
+  sessionStorage.setItem('dbx-verifier', verifier);
+  const challenge = await dbxChallenge(verifier);
+  location.href = 'https://www.dropbox.com/oauth2/authorize'
+    + '?client_id=' + DBX_KEY
+    + '&response_type=code&token_access_type=offline'
+    + '&code_challenge=' + challenge + '&code_challenge_method=S256'
+    + '&redirect_uri=' + encodeURIComponent(dbxRedirectUri());
+}
+function dbxUnlink() { try { localStorage.removeItem(DBX_TOKENS_KEY); } catch (e) {} }
+
+async function dbxHandleRedirect() {
+  const code = new URLSearchParams(location.search).get('code');
+  if (!code) return false;
+  const verifier = sessionStorage.getItem('dbx-verifier');
+  history.replaceState({}, '', location.pathname); // 清掉網址上的 ?code
+  if (!verifier) return false;
+  const body = new URLSearchParams({
+    code, grant_type: 'authorization_code', client_id: DBX_KEY,
+    code_verifier: verifier, redirect_uri: dbxRedirectUri(),
+  });
+  try {
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+    });
+    if (!res.ok) return false;
+    const j = await res.json();
+    localStorage.setItem(DBX_TOKENS_KEY, JSON.stringify({
+      refresh_token: j.refresh_token, access_token: j.access_token,
+      expires_at: Date.now() + (j.expires_in || 14400) * 1000,
+    }));
+    sessionStorage.removeItem('dbx-verifier');
+    return true;
+  } catch (e) { console.warn('dbx token', e); return false; }
+}
+
+async function dbxAccessToken() {
+  let t;
+  try { t = JSON.parse(localStorage.getItem(DBX_TOKENS_KEY) || 'null'); } catch (e) { t = null; }
+  if (!t) return null;
+  if (t.access_token && t.expires_at > Date.now() + 60000) return t.access_token;
+  const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: t.refresh_token, client_id: DBX_KEY });
+  try {
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    t.access_token = j.access_token;
+    t.expires_at = Date.now() + (j.expires_in || 14400) * 1000;
+    localStorage.setItem(DBX_TOKENS_KEY, JSON.stringify(t));
+    return t.access_token;
+  } catch (e) { console.warn('dbx refresh', e); return null; }
+}
+
+async function dbxDownload() {
+  const tok = await dbxAccessToken();
+  if (!tok) return null;
+  const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Dropbox-API-Arg': JSON.stringify({ path: DBX_FILE }) },
+  });
+  if (res.status === 409) return null; // 雲端還沒有檔案
+  if (!res.ok) return null;
+  try { return JSON.parse(await res.text()); } catch (e) { return null; }
+}
+
+async function dbxUpload() {
+  const tok = await dbxAccessToken();
+  if (!tok) return false;
+  const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + tok,
+      'Dropbox-API-Arg': JSON.stringify({ path: DBX_FILE, mode: 'overwrite', mute: true }),
+      'Content-Type': 'application/octet-stream',
+    },
+    body: JSON.stringify(db),
+  });
+  return res.ok;
+}
+
+function dbxScheduleUpload() {
+  if (!dbxLinked()) return;
+  dbxSetStatus('儲存中…');
+  clearTimeout(dbxUploadTimer);
+  dbxUploadTimer = setTimeout(async () => {
+    const ok = await dbxUpload();
+    dbxSetStatus(ok ? '已同步 ✓' : '同步失敗,稍後重試');
+  }, 1500);
+}
+
+async function dbxSync() {
+  if (!dbxLinked()) return;
+  dbxSetStatus('同步中…');
+  const remote = await dbxDownload();
+  const localTime = db._updatedAt || 0;
+  const remoteTime = (remote && remote._updatedAt) || 0;
+  if (remote && remoteTime > localTime) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    db = loadDB();
+    render();
+    dbxSetStatus('已同步 ✓');
+  } else if (!remote || localTime > remoteTime) {
+    if (!db._updatedAt) { db._updatedAt = Date.now(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {} }
+    const ok = await dbxUpload();
+    dbxSetStatus(ok ? '已同步 ✓' : '同步失敗');
+  } else {
+    dbxSetStatus('已同步 ✓');
+  }
+}
+
 function settingsModal() {
+  const dbxSection = dbxAvailable() ? `
+    <div style="border-top:1px solid var(--line);margin:6px 0 16px;padding-top:14px">
+      <div style="font-weight:600;margin-bottom:8px">☁️ Dropbox 跨裝置同步</div>
+      ${dbxLinked()
+        ? `<div class="field-hint" style="margin-bottom:10px">已連結。改動會自動存到你 Dropbox 的 App 專屬資料夾,並在各裝置同步。<br><span id="dbx-status" style="color:var(--green);font-weight:600">${esc(dbxStatus || '已同步 ✓')}</span></div>
+           <button class="btn btn-ghost btn-block" id="dbx-unlink">取消連結</button>`
+        : `<div class="field-hint" style="margin-bottom:10px">連結後,這台電腦/手機會透過你的 Dropbox 自動同步(資料只進你自己的 Dropbox)。</div>
+           <button class="btn btn-primary btn-block" id="dbx-link">🔗 連結 Dropbox 開啟同步</button>`
+      }
+    </div>` : '';
   openModal(`
-    <div class="modal-title">資料備份</div>
-    <div class="field-hint" style="margin-bottom:16px">
-      目前有 ${db.clients.length} 個客戶、${db.projects.length} 個案件、${db.payments.length} 筆收款。<br>
-      資料只存在本機瀏覽器,建議定期匯出備份保存。
+    <div class="modal-title">設定 / 備份</div>
+    <div class="field-hint" style="margin-bottom:14px">
+      目前有 ${db.clients.length} 個客戶、${db.projects.length} 個案件、${db.payments.length} 筆收款。
     </div>
+    ${dbxSection}
+    <div style="font-weight:600;margin:0 0 8px">💾 手動備份</div>
     <button class="btn btn-primary btn-block" id="do-export" style="margin-bottom:10px">⬇️ 匯出備份(下載檔案)</button>
     <button class="btn btn-ghost btn-block" id="do-import">⬆️ 從備份檔還原</button>
     <input type="file" id="import-file" accept="application/json,.json" style="display:none" />
@@ -995,6 +1145,13 @@ function settingsModal() {
   document.getElementById('do-import').addEventListener('click', () => document.getElementById('import-file').click());
   document.getElementById('import-file').addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) importData(e.target.files[0]);
+  });
+  const linkBtn = document.getElementById('dbx-link');
+  if (linkBtn) linkBtn.addEventListener('click', dbxLink);
+  const unlinkBtn = document.getElementById('dbx-unlink');
+  if (unlinkBtn) unlinkBtn.addEventListener('click', () => {
+    if (!confirm('取消連結後,這台裝置就不再自動同步(資料仍會留著)。確定?')) return;
+    dbxUnlink(); closeModal(); settingsModal();
   });
 }
 
@@ -1112,3 +1269,14 @@ document.getElementById('view').addEventListener('click', (e) => {
 /* ---------- 啟動 ---------- */
 // db 已在最上方用 loadDB() 載入(含本機儲存 / 內嵌種子 / localStorage 被擋的處理),直接渲染。
 render();
+
+// Dropbox 同步:處理登入回呼 + 開啟時拉一次最新資料
+(async function dbxBoot() {
+  if (!dbxAvailable()) return; // file:// 不支援 OAuth,跳過
+  let justLinked = false;
+  try { justLinked = await dbxHandleRedirect(); } catch (e) { console.warn('dbx redirect', e); }
+  if (dbxLinked()) {
+    try { await dbxSync(); } catch (e) { console.warn('dbx sync', e); }
+    if (justLinked) alert('已連結 Dropbox ✓ 之後的改動會自動跨裝置同步。');
+  }
+})();
