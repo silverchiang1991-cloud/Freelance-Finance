@@ -1,0 +1,17 @@
+{
+  "name": "接案收入管理",
+  "short_name": "接案收入",
+  "description": "管理接案的客戶、案件與收款",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#1f6feb",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

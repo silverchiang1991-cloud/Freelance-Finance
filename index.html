@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1f6feb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="接案收入" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css?v=24" />
+  <script>try{if(localStorage.getItem('freelance-theme')==='light')document.documentElement.classList.add('theme-light');}catch(e){}</script>
+  <title>接案收入管理</title>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1 id="topbar-title">總覽</h1>
+      <div class="topbar-actions">
+        <button id="theme-btn" class="topbar-btn" aria-label="夜覽/日覽切換">🌙</button>
+        <button id="settings-btn" class="topbar-btn" aria-label="資料備份">⚙</button>
+      </div>
+    </header>
+
+    <main id="view" class="view"></main>
+
+    <nav class="tabbar">
+      <button class="tab" data-view="dashboard">
+        <span class="tab-icon">📊</span><span class="tab-label">總覽</span>
+      </button>
+      <button class="tab" data-view="projects">
+        <span class="tab-icon">📁</span><span class="tab-label">案件</span>
+      </button>
+      <button class="tab" data-view="clients">
+        <span class="tab-icon">👤</span><span class="tab-label">客戶</span>
+      </button>
+    </nav>
+
+    <button id="fab" class="fab" aria-label="新增">＋</button>
+  </div>
+
+  <div id="modal-root"></div>
+
+  <script src="seed-data.js?v=6"></script>
+  <script src="app.js?v=25"></script>
+</body>
+</html>
