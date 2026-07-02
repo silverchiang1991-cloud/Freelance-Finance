@@ -273,7 +273,7 @@ function buildOverview() {
         <div class="stat-value">${fmtMoney(receivedTotal)}</div>
       </div>
       <div class="stat aurora aurora-red">
-        <div class="stat-label">累計應收</div>
+        <div class="stat-label">累計應收<br>(已結案未收到)</div>
         <div class="stat-value">${fmtMoney(closedReceivable)}</div>
       </div>
       <div class="stat aurora aurora-amber">
@@ -330,6 +330,17 @@ function renderProjects() {
       <div class="seg-opt ${sort === 'client' ? 'active' : ''}" data-proj-sort="client">依業主</div>
     </div>`;
 
+  // 可收合的分組(點標題展開/收合)
+  const groupHtml = (title, items) => `
+    <div class="proj-acc">
+      <button class="proj-acc-head" data-acc>
+        <span class="proj-acc-title">${esc(title)}</span>
+        <span class="proj-count">${items.length}</span>
+        <span class="proj-acc-chev">›</span>
+      </button>
+      <div class="proj-acc-body">${items.map((p) => projectRow(p)).join('')}</div>
+    </div>`;
+
   let body;
   if (sort === 'client') {
     // 依業主分組(業主名稱排序),沒有業主的放最後
@@ -347,15 +358,13 @@ function renderProjects() {
     body = groups.map((g) => {
       // 同業主內:依最新收款日由新到舊(越晚的排越前面)
       g.items.sort((a, b) => projectLatestDate(b.id).localeCompare(projectLatestDate(a.id)));
-      return `<div class="section-title">${esc(g.name)} (${g.items.length})</div>` +
-        g.items.map((p) => projectRow(p)).join('');
+      return groupHtml(g.name, g.items);
     }).join('');
   } else {
     body = PROJECT_STATUS_ORDER.map((st) => {
       const items = db.projects.filter((p) => p.status === st);
       if (!items.length) return '';
-      return `<div class="section-title">${PROJECT_STATUS[st].label} (${items.length})</div>` +
-        items.map((p) => projectRow(p)).join('');
+      return groupHtml(PROJECT_STATUS[st].label, items);
     }).join('');
   }
   viewEl.innerHTML = toggle + body;
@@ -1255,6 +1264,9 @@ viewEl.addEventListener('mouseout', (e) => {
 
 // 事件委派:處理列表內的點擊
 document.getElementById('view').addEventListener('click', (e) => {
+  const accHead = e.target.closest('[data-acc]');
+  if (accHead) { accHead.closest('.proj-acc').classList.toggle('open'); return; }
+
   const openP = e.target.closest('[data-open-project]');
   if (openP) { state.view = 'project-detail'; state.detailProjectId = openP.dataset.openProject; render(); return; }
 

@@ -134,9 +134,14 @@ html, body {
 .month-row .stat { min-height: 94px; }
 .month-row .stat-value { font-size: 22px; }
 .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
-.trio .stat { min-height: 110px; padding: 13px; border-radius: 16px; }
+.trio .stat { min-height: 116px; padding: 12px 8px; border-radius: 16px; text-align: center; }
 .trio .stat-label { font-size: 12px; line-height: 1.25; }
-.trio .stat-value { font-size: 17px; }
+.trio .stat-value { font-size: 15px; white-space: nowrap; }
+@media (max-width: 430px) {
+  .trio .stat { padding: 12px 5px; }
+  .trio .stat-label { font-size: 11px; }
+  .trio .stat-value { font-size: 12.5px; }
+}
 
 /* 案件 icon 展開(hover 才把案件一張張顯示) */
 .proj-toggles { display: flex; flex-direction: column; gap: 12px; }
@@ -345,6 +350,21 @@ html, body {
   cursor: pointer;
 }
 .seg-opt.active { border-color: var(--primary); background: rgba(74,141,255,.18); color: #9cc2ff; }
+
+/* 案件分組可收合(依狀態 / 依業主)*/
+.proj-acc { margin-bottom: 12px; }
+.proj-acc-head {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 14px 16px; color: var(--text); font-family: inherit; font-size: 16px; font-weight: 500;
+  cursor: pointer; transition: background .15s ease;
+}
+.proj-acc-head:hover { background: var(--card-2); }
+.proj-acc-title { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-acc-chev { color: var(--muted); font-size: 20px; transition: transform .2s ease; }
+.proj-acc.open .proj-acc-chev { transform: rotate(90deg); }
+.proj-acc-body { display: none; margin-top: 10px; }
+.proj-acc.open .proj-acc-body { display: block; }
 
 /* 客戶顏色調色盤 */
 .color-grid { display: flex; flex-wrap: wrap; gap: 12px; }
