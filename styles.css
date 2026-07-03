@@ -134,13 +134,13 @@ html, body {
 .month-row .stat { min-height: 94px; }
 .month-row .stat-value { font-size: 22px; }
 .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
-.trio .stat { min-height: 116px; padding: 12px 8px; border-radius: 16px; text-align: center; }
+.trio .stat { min-height: 116px; padding: 13px; border-radius: 16px; }
 .trio .stat-label { font-size: 12px; line-height: 1.25; }
-.trio .stat-value { font-size: 15px; white-space: nowrap; }
+.trio .stat-value { font-size: 18px; white-space: nowrap; }
 @media (max-width: 430px) {
-  .trio .stat { padding: 12px 5px; }
+  .trio .stat { padding: 13px 9px; }
   .trio .stat-label { font-size: 11px; }
-  .trio .stat-value { font-size: 12.5px; }
+  .trio .stat-value { font-size: 15px; }
 }
 
 /* 案件 icon 展開(hover 才把案件一張張顯示) */
