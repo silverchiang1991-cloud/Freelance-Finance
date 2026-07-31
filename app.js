@@ -246,39 +246,40 @@ function buildOverview() {
   }
 
   return `
-    <div class="hovergroup">
-      <div class="stat aurora aurora-hero hero">
-        <div class="stat-label">總收入(進行中＋已結案)</div>
-        <div class="stat-value">${fmtMoney(totalIncome)}</div>
-        <div class="stat-sub">${db.projects.length} 個案件 · ${db.clients.length} 位業主</div>
-        <div class="hero-hint">移到此處看本月 ↓</div>
-      </div>
-      <div class="month-row">
-        <div class="stat aurora aurora-orange">
-          <div class="stat-label">本月應收</div>
-          <div class="stat-value">${fmtMoney(monthDue)}</div>
-          <div class="stat-sub">${ym}・尚未收到</div>
+    <div class="bento">
+      <div class="hovergroup">
+        <div class="stat glass g-hero">
+          <div class="stat-label">總收入</div>
+          <div class="stat-value">${fmtMoney(totalIncome)}</div>
+          <div class="stat-sub">${db.projects.length} 個案件 · ${db.clients.length} 位業主</div>
+          <div class="hero-hint">看本月 ↓</div>
         </div>
-        <div class="stat aurora aurora-green">
-          <div class="stat-label">本月已收</div>
-          <div class="stat-value">${fmtMoney(monthReceived)}</div>
-          <div class="stat-sub">${ym}・實際入帳</div>
+        <div class="month-row">
+          <div class="stat glass g-blue">
+            <div class="stat-label">本月應收</div>
+            <div class="stat-value">${fmtMoney(monthDue)}</div>
+            <div class="stat-sub">${ym}・尚未收到</div>
+          </div>
+          <div class="stat glass g-green">
+            <div class="stat-label">本月已收</div>
+            <div class="stat-value">${fmtMoney(monthReceived)}</div>
+            <div class="stat-sub">${ym}・實際入帳</div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="trio">
-      <div class="stat aurora aurora-green">
-        <div class="stat-label">實際累計收入</div>
-        <div class="stat-value">${fmtMoney(receivedTotal)}</div>
-      </div>
-      <div class="stat aurora aurora-red">
-        <div class="stat-label">累計應收<br>(已結案未收到)</div>
-        <div class="stat-value">${fmtMoney(closedReceivable)}</div>
-      </div>
-      <div class="stat aurora aurora-amber">
-        <div class="stat-label">尚待收款<br>(進行中)</div>
-        <div class="stat-value">${fmtMoney(pendingTotal)}</div>
+      <div class="trio3">
+        <div class="stat glass g-teal">
+          <div class="stat-label">實際累計收入</div>
+          <div class="stat-value">${fmtMoney(receivedTotal)}</div>
+        </div>
+        <div class="stat glass g-magenta">
+          <div class="stat-label">已結案未收</div>
+          <div class="stat-value">${fmtMoney(closedReceivable)}</div>
+        </div>
+        <div class="stat glass g-orange">
+          <div class="stat-label">進行中</div>
+          <div class="stat-value">${fmtMoney(pendingTotal)}</div>
+        </div>
       </div>
     </div>
 
@@ -1122,12 +1123,42 @@ async function dbxUpload() {
   return res.ok;
 }
 
+function dbxCount(o) {
+  if (!o) return 0;
+  return (o.clients ? o.clients.length : 0) + (o.projects ? o.projects.length : 0) + (o.payments ? o.payments.length : 0);
+}
+
+// 上傳前的安全防護:若雲端資料明顯比這台多,疑似本機被清空/打錯,先問過再蓋
+async function dbxUploadGuarded() {
+  const remote = await dbxDownload();
+  const localN = dbxCount(db);
+  const remoteN = dbxCount(remote);
+  if (remote && remoteN >= 5 && localN < remoteN * 0.5) {
+    const keepCloud = !confirm(
+      '⚠️ 同步保護\n\n' +
+      '雲端有 ' + remoteN + ' 筆資料,但這台裝置只剩 ' + localN + ' 筆。\n\n' +
+      '按「確定」= 用這台(較少)覆蓋雲端,雲端較多的資料會被取代。\n' +
+      '按「取消」= 保留雲端,把雲端資料拉回這台(建議)。'
+    );
+    if (keepCloud) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+      db = loadDB();
+      render();
+      dbxSetStatus('已還原雲端資料 ✓');
+      return true;
+    }
+    db._updatedAt = Date.now();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
+  }
+  return dbxUpload();
+}
+
 function dbxScheduleUpload() {
   if (!dbxLinked()) return;
   dbxSetStatus('儲存中…');
   clearTimeout(dbxUploadTimer);
   dbxUploadTimer = setTimeout(async () => {
-    const ok = await dbxUpload();
+    const ok = await dbxUploadGuarded();
     dbxSetStatus(ok ? '已同步 ✓' : '同步失敗,稍後重試');
   }, 1500);
 }
@@ -1139,6 +1170,22 @@ async function dbxSync() {
   const localTime = db._updatedAt || 0;
   const remoteTime = (remote && remote._updatedAt) || 0;
   if (remote && remoteTime > localTime) {
+    const localN = dbxCount(db), remoteN = dbxCount(remote);
+    if (localN >= 5 && remoteN < localN * 0.5) {
+      const useRemote = confirm(
+        '⚠️ 同步保護\n\n' +
+        '雲端版本只有 ' + remoteN + ' 筆,但這台裝置有 ' + localN + ' 筆。\n\n' +
+        '按「確定」= 用雲端(較少)覆蓋這台。\n' +
+        '按「取消」= 保留這台資料,並回存到雲端(建議)。'
+      );
+      if (!useRemote) {
+        db._updatedAt = Date.now();
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
+        await dbxUpload();
+        dbxSetStatus('已保留本機並回存雲端 ✓');
+        return;
+      }
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
     db = loadDB();
     render();
@@ -1264,6 +1311,15 @@ viewEl.addEventListener('mouseout', (e) => {
 
 // 事件委派:處理列表內的點擊
 document.getElementById('view').addEventListener('click', (e) => {
+  const glass = e.target.closest('.stat.glass');
+  if (glass) {
+    glass.classList.remove('flow'); void glass.offsetWidth; glass.classList.add('flow');
+    if (glass.classList.contains('g-hero')) {
+      const hg = glass.closest('.hovergroup');
+      if (hg) hg.classList.toggle('show');
+    }
+  }
+
   const accHead = e.target.closest('[data-acc]');
   if (accHead) { accHead.closest('.proj-acc').classList.toggle('open'); return; }
 

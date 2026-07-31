@@ -382,7 +382,7 @@ html, body {
 /* 案件編輯:進度 + 分期收款 */
 .pf-status { background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 13px; margin: 4px 0 8px; }
 .pf-status-label { font-size: 13px; color: var(--muted); margin-bottom: 7px; }
-.pf-pay-summary { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: rgba(255,255,255,.82); margin: 16px 0 7px; }
+.pf-pay-summary { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--muted); margin: 16px 0 7px; }
 .pf-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; margin-bottom: 12px; }
 .pf-bar-fill { height: 100%; background: var(--green); transition: width .25s ease; }
 .pf-pay { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px; margin-bottom: 8px; }
@@ -530,3 +530,92 @@ html.theme-light .aurora-green { background: radial-gradient(120% 105% at 28% 32
 html.theme-light .aurora-red { background: radial-gradient(130% 105% at 60% 40%, #fbd4d0 0%, #fbeceb 78%); }
 html.theme-light .aurora-amber { background: radial-gradient(130% 105% at 60% 55%, #f6e3b0 0%, #fbf4e2 78%); }
 html.theme-light .pie-svg feDropShadow { flood-opacity: 0.12; }
+
+
+/* ---------- 總覽:bento 玻璃卡 ---------- */
+.bento { display: flex; flex-direction: column; }
+.bento-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+
+.stat.glass {
+  position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 26px; color: #fff; display: flex; flex-direction: column;
+  cursor: pointer; transition: transform .2s ease;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 10px 30px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.stat.glass:active { transform: scale(.98); }
+.stat.glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
+  background: linear-gradient(180deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.03) 26%, rgba(255,255,255,0) 48%);
+}
+.stat.glass::after {
+  content: ""; position: absolute; inset: -45%; border-radius: 50%; pointer-events: none; z-index: 1;
+  background: radial-gradient(closest-side, rgba(255,255,255,.3), rgba(255,255,255,0) 72%);
+  opacity: 0; transform: translate(-40%, 25%) scale(.5);
+}
+.stat.glass.flow::after { animation: cardflow 1150ms cubic-bezier(.22,.61,.36,1); }
+@keyframes cardflow {
+  0%   { opacity: 0; transform: translate(-45%,30%) scale(.45); }
+  28%  { opacity: .9; }
+  100% { opacity: 0; transform: translate(65%,-25%) scale(1.5); }
+}
+.stat.glass > * { position: relative; z-index: 3; }
+.stat.glass .stat-label { color: rgba(255,255,255,.82); }
+.stat.glass .stat-value { color: #fff; font-weight: 300; margin-top: auto; }
+.stat.glass .stat-sub { color: rgba(255,255,255,.68); }
+
+.g-hero { padding: 24px 24px 26px; min-height: 118px; margin-bottom: 0;
+  background:
+    linear-gradient(0deg, rgba(255,255,255,.05), rgba(255,255,255,.05)),
+    radial-gradient(135% 155% at 82% 6%, rgba(196,162,232,.9) 0%, rgba(196,162,232,0) 56%),
+    linear-gradient(150deg, rgba(112,92,158,.95) 0%, rgba(200,118,146,.92) 52%, rgba(230,150,102,.92) 100%); }
+.g-hero .stat-label { font-size: 15px; margin-bottom: 14px; }
+.g-hero .stat-value { font-size: 40px; }
+.g-hero .hero-hint { position: absolute; top: 24px; right: 22px; bottom: auto; z-index: 3; }
+
+.bento-grid .stat.glass { padding: 18px 18px 20px; min-height: 132px; }
+.bento-grid .stat-value { font-size: 26px; }
+.g-teal    { background: linear-gradient(0deg, rgba(255,255,255,.04), rgba(255,255,255,.04)), radial-gradient(115% 115% at 22% 10%, rgba(40,178,140,.62) 0%, rgba(14,32,28,.5) 70%); }
+.g-magenta { background: linear-gradient(0deg, rgba(255,255,255,.04), rgba(255,255,255,.04)), radial-gradient(115% 120% at 72% 40%, rgba(196,72,158,.6) 0%, rgba(30,14,26,.5) 72%); }
+.g-blue    { background: linear-gradient(0deg, rgba(255,255,255,.04), rgba(255,255,255,.04)), radial-gradient(120% 120% at 24% 14%, rgba(58,116,214,.62) 0%, rgba(12,22,44,.5) 72%); }
+.g-orange  { background: linear-gradient(0deg, rgba(255,255,255,.04), rgba(255,255,255,.04)), radial-gradient(115% 120% at 22% 18%, rgba(214,116,52,.62) 0%, rgba(30,16,8,.5) 70%); }
+
+/* 日覽:糖果玻璃卡 */
+html.theme-light .stat.glass {
+  border: 1px solid rgba(255,255,255,.42);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.45), 0 12px 30px rgba(130,120,165,.18);
+}
+html.theme-light .stat.glass::before { background: linear-gradient(180deg, rgba(255,255,255,.26) 0%, rgba(255,255,255,.05) 26%, rgba(255,255,255,0) 48%); }
+html.theme-light .stat.glass::after { background: radial-gradient(closest-side, rgba(255,255,255,.55), rgba(255,255,255,0) 72%); }
+html.theme-light .stat.glass .stat-label { color: rgba(74,64,98,.72); }
+html.theme-light .stat.glass .stat-value { color: #332b4a; }
+html.theme-light .stat.glass .stat-sub { color: rgba(74,64,98,.6); }
+html.theme-light .g-hero { background:
+  radial-gradient(135% 155% at 82% 6%, rgba(206,168,238,.75) 0%, rgba(206,168,238,0) 56%),
+  linear-gradient(150deg, #cdbaee 0%, #f3bccf 52%, #f9cfab 100%); }
+html.theme-light .g-teal    { background: radial-gradient(115% 115% at 22% 10%, rgba(120,224,190,.72) 0%, rgba(232,248,243,.5) 72%); }
+html.theme-light .g-magenta { background: radial-gradient(115% 120% at 72% 40%, rgba(244,164,206,.72) 0%, rgba(250,236,243,.5) 74%); }
+html.theme-light .g-blue    { background: radial-gradient(120% 120% at 24% 14%, rgba(148,186,244,.72) 0%, rgba(234,240,251,.5) 74%); }
+html.theme-light .g-orange  { background: radial-gradient(115% 120% at 22% 18%, rgba(248,190,140,.72) 0%, rgba(251,240,231,.5) 72%); }
+
+.g-green { background: linear-gradient(0deg, rgba(255,255,255,.04), rgba(255,255,255,.04)), radial-gradient(115% 115% at 22% 12%, rgba(96,196,120,.6) 0%, rgba(16,32,20,.5) 70%); }
+html.theme-light .g-green { background: radial-gradient(115% 115% at 22% 12%, rgba(150,222,158,.72) 0%, rgba(236,248,239,.5) 72%); }
+
+/* 下方三欄玻璃卡 */
+.trio3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+.trio3 .stat.glass { padding: 15px 11px; min-height: 120px; border-radius: 20px; }
+.trio3 .stat-label { font-size: 12px; line-height: 1.25; }
+.trio3 .stat-value { font-size: 16px; white-space: nowrap; }
+.trio3 .stat-sub { font-size: 11px; margin-top: 4px; }
+@media (max-width: 430px) {
+  .trio3 .stat.glass { padding: 14px 8px; }
+  .trio3 .stat-label { font-size: 11px; }
+  .trio3 .stat-value { font-size: 14px; }
+  .trio3 .stat-sub { font-size: 10px; }
+}
+
+/* 手機:點總收入卡也能滑出本月(hover 之外的備援) */
+.hovergroup.show .month-row { max-height: 200px; opacity: 1; margin-top: 12px; }
+.hovergroup.show .hero-hint { opacity: 0; }
+.month-row .stat.glass { min-height: 92px; }
+.month-row .stat-value { font-size: 22px; }
